@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude Code Buddy Patcher</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0a0a0a;color:#e0e0e0;min-height:100vh}
+.container{max-width:760px;margin:0 auto;padding:24px 16px}
+h1{font-size:1.5rem;margin-bottom:4px;color:#fff}
+h1 span{color:#f59e0b}
+.subtitle{color:#888;font-size:.85rem;margin-bottom:24px}
+section{background:#141414;border:1px solid #262626;border-radius:8px;padding:16px;margin-bottom:16px}
+section h2{font-size:.9rem;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px}
+label{display:block;font-size:.8rem;color:#aaa;margin-bottom:4px}
+input,select{width:100%;padding:8px 12px;background:#1a1a1a;border:1px solid #333;border-radius:6px;color:#e0e0e0;font-size:.9rem;font-family:'SF Mono','Fira Code',monospace;outline:none}
+input:focus,select:focus{border-color:#f59e0b}
+.hint{font-size:.75rem;color:#666;margin-top:4px}
+.row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px}
+.row4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:8px}
+button{width:100%;padding:10px;background:#f59e0b;color:#000;border:none;border-radius:6px;font-size:.9rem;font-weight:600;cursor:pointer}
+button:hover{background:#fbbf24}
+button:disabled{opacity:.5;cursor:not-allowed}
+.progress-bar{width:100%;height:6px;background:#1a1a1a;border-radius:3px;margin-top:8px;overflow:hidden}
+.progress-bar .fill{height:100%;background:#f59e0b;border-radius:3px;transition:width .1s;width:0%}
+.progress{margin-top:8px;font-size:.8rem;color:#888;font-family:monospace}
+.result-row{display:grid;grid-template-columns:140px 1fr 90px 40px 80px 50px;gap:4px;padding:6px 8px;font-size:.8rem;border-bottom:1px solid #1a1a1a;font-family:monospace;align-items:center;cursor:pointer}
+.result-row.header{color:#888;font-weight:600;border-bottom:1px solid #333;cursor:default}
+.result-row:hover:not(.header){background:#1a1a1a}
+.badge{display:inline-block;padding:2px 6px;border-radius:4px;font-size:.7rem;font-weight:600;text-transform:uppercase}
+.badge-common{background:#333;color:#aaa}
+.badge-uncommon{background:#1a3a1a;color:#4ade80}
+.badge-rare{background:#1a2a3a;color:#60a5fa}
+.badge-epic{background:#2a1a3a;color:#c084fc}
+.badge-legendary{background:#3a2a0a;color:#fbbf24}
+.badge-shiny{background:#fbbf24;color:#000}
+.verification{font-size:.75rem;margin-top:4px}
+.verification.ok{color:#4ade80}
+.verification.fail{color:#f87171}
+.copied-toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#4ade80;color:#000;padding:8px 16px;border-radius:6px;font-size:.85rem;font-weight:600;opacity:0;transition:opacity .3s;pointer-events:none}
+.copied-toast.show{opacity:1}
+.preview-box{margin-top:12px;padding:12px;background:#1a1a1a;border:1px solid #333;border-radius:6px;display:flex;align-items:center;gap:16px}
+.preview-box .sprite{font-size:2rem;line-height:1}
+.preview-box .info{font-size:.85rem;line-height:1.6}
+.preview-box .info .name{text-transform:capitalize;color:#fff;font-weight:600}
+.preview-box .info .detail{color:#aaa}
+.salt-info{font-size:.8rem;font-family:monospace;margin-top:4px}
+.salt-info .dim{color:#666}
+.salt-info .warn{color:#f87171}
+.salt-info .ok{color:#f59e0b}
+.howto p{font-size:.85rem;margin:4px 0;color:#ccc}
+.howto p.hint{font-size:.75rem;color:#888}
+.howto-cmd{display:block;padding:8px 12px;background:#1a1a1a;border:1px solid #333;border-radius:6px;color:#e0e0e0;font-size:.8rem;font-family:'SF Mono','Fira Code',monospace;cursor:pointer;word-break:break-all;user-select:all;transition:border-color .15s}
+.howto-cmd:hover{border-color:#f59e0b}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Claude Code <span>Buddy Patcher</span></h1>
+  <p class="subtitle">Find the perfect salt for your Claude Code companion</p>
+
+  <section>
+    <h2>User ID</h2>
+    <label for="userId">accountUuid</label>
+    <input type="text" id="userId" placeholder="ffcb53e0-eae7-48ff-9c03-fbce12345678">
+    <p class="hint">Found in ~/.claude.json &rarr; oauthAccount.accountUuid. If you have both accountUuid and userID, <strong>use accountUuid</strong>. grep -i accountUuid ~/.claude.json</p>
+    <div id="verifyResult" class="verification"></div>
+  </section>
+
+  <section>
+    <h2>Salt Prefix</h2>
+    <label for="prefix">Prefix (salt = prefix + numeric suffix)</label>
+    <input type="text" id="prefix" value="friend-202" oninput="updateSaltInfo()">
+    <div id="saltInfo" class="salt-info"></div>
+    <p class="hint">Salt must be exactly 15 chars (same as "friend-2026-401"). Change prefix to search different salt spaces.</p>
+  </section>
+
+  <section>
+    <h2>Filter</h2>
+    <div class="row4">
+      <div>
+        <label>Rarity</label>
+        <select id="fRarity">
+          <option value="">Any</option>
+          <option value="legendary" selected>Legendary (1%)</option>
+          <option value="epic">Epic (4%)</option>
+          <option value="rare">Rare (10%)</option>
+          <option value="uncommon">Uncommon (25%)</option>
+          <option value="common">Common (60%)</option>
+        </select>
+      </div>
+      <div>
+        <label>Species</label>
+        <select id="fSpecies"><option value="">Any</option></select>
+      </div>
+      <div>
+        <label>Eye</label>
+        <select id="fEye"><option value="">Any</option></select>
+      </div>
+      <div>
+        <label>Hat</label>
+        <select id="fHat"><option value="">Any</option></select>
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label>Shiny</label>
+        <select id="fShiny">
+          <option value="">Any</option>
+          <option value="yes">Yes (1%)</option>
+          <option value="no">No</option>
+        </select>
+      </div>
+    </div>
+    <div id="previewBox" class="preview-box" style="display:none">
+      <div class="sprite" id="previewSprite"></div>
+      <div class="info" id="previewInfo"></div>
+    </div>
+  </section>
+
+  <section>
+    <button id="searchBtn" onclick="search()">Search</button>
+    <button id="stopBtn" onclick="stopSearch()" style="display:none;margin-top:6px;background:#666">Stop</button>
+    <div id="status" class="progress"></div>
+    <div class="progress-bar"><div class="fill" id="progressFill"></div></div>
+    <div class="results" id="resultsSection" style="display:none">
+      <div class="result-row header">
+        <span>Salt</span><span>Species</span><span>Rarity</span><span>Eye</span><span>Hat</span><span>Shiny</span>
+      </div>
+      <div id="resultBody"></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>How to Patch</h2>
+    <div class="howto">
+      <p><strong>1. Backup your Claude Code binary</strong></p>
+      <code id="cmdBackup" class="howto-cmd" onclick="copyCmd('cmdBackup')">cp ~/.local/share/claude/versions/$(ls ~/.local/share/claude/versions/ | grep -E '^[0-9.]+$' | sort -V | tail -1) ~/.local/share/claude/versions/$(ls ~/.local/share/claude/versions/ | grep -E '^[0-9.]+$' | sort -V | tail -1).bak</code>
+      <p class="hint" style="margin-top:8px"><strong>2. Patch the salt string</strong> — click a result row above, or run manually:</p>
+      <code id="cmdPatch" class="howto-cmd" onclick="copyCmd('cmdPatch')">sed -i 's/friend-2026-401/YOUR_SALT_HERE/g' ~/.local/share/claude/versions/$(ls ~/.local/share/claude/versions/ | grep -E '^[0-9.]+$' | sort -V | tail -1)</code>
+      <p class="hint" style="margin-top:8px"><strong>3. To restore</strong> — undo the patch or copy the backup back:</p>
+      <code id="cmdRestore" class="howto-cmd" onclick="copyCmd('cmdRestore')">cp ~/.local/share/claude/versions/$(ls ~/.local/share/claude/versions/ | grep -E '^[0-9.]+$' | sort -V | tail -1).bak ~/.local/share/claude/versions/$(ls ~/.local/share/claude/versions/ | grep -E '^[0-9.]+$' | sort -V | tail -1)</code>
+      <p class="hint" style="margin-top:8px">Click any command to copy. Salt must be exactly 15 characters (same length as <code>friend-2026-401</code>).</p>
+    </div>
+  </section>
+</div>
+
+<div id="toast" class="copied-toast">Copied to clipboard!</div>
+
+<script src="wyhash.js"></script>
+<script>
+// --- Constants (exact from src/buddy/types.ts) ---
+const SPECIES = ['duck','goose','blob','cat','dragon','octopus','owl','penguin','turtle','snail','ghost','axolotl','capybara','cactus','robot','rabbit','mushroom','chonk'];
+const EYES = ['\u00B7','\u2726','\u00D7','\u25C9','@','\u00B0'];
+const HATS = ['none','crown','tophat','propeller','halo','wizard','beanie','tinyduck'];
+const RARITIES = ['common','uncommon','rare','epic','legendary'];
+const RARITY_WEIGHTS = [60, 25, 10, 4, 1];
+const SALT_LEN = 15;
+
+// ASCII art sprites per species
+const SPRITES = {
+  duck: '(o)>', goose: '(O)>>', blob: '(~)', cat: '=^.^=', dragon: '/^..^\\',
+  octopus: '(:)8', owl: '(O,O)', penguin: '<(")', turtle: '(tm)', snail: '_@_',
+  ghost: '(-_-)', axolotl: '~(:))', capybara: '[-_-]', cactus: '|||', robot: '[o_o]',
+  rabbit: '(\_/)', mushroom: '(m)', chonk: '(OwO)',
+};
+
+// Populate dropdowns
+for (const s of SPECIES) document.getElementById('fSpecies').innerHTML += `<option>${s}</option>`;
+for (const e of EYES) document.getElementById('fEye').innerHTML += `<option>${e}</option>`;
+for (const h of HATS) document.getElementById('fHat').innerHTML += `<option>${h}</option>`;
+
+// --- PRNG (exact from src/buddy/companion.ts) ---
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return function() {
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function hashString(s) {
+  return Number(wyhash(0n, s) & 0xffffffffn);
+}
+
+function pick(rng, arr) { return arr[Math.floor(rng() * arr.length)]; }
+
+function rollRarity(rng) {
+  let roll = rng() * 100;
+  for (let i = 0; i < RARITIES.length; i++) {
+    roll -= RARITY_WEIGHTS[i];
+    if (roll < 0) return RARITIES[i];
+  }
+  return 'common';
+}
+
+function rollFrom(rng) {
+  const rarity = rollRarity(rng);
+  return {
+    rarity,
+    species: pick(rng, SPECIES),
+    eye: pick(rng, EYES),
+    hat: rarity === 'common' ? 'none' : pick(rng, HATS),
+    shiny: rng() < 0.01,
+  };
+}
+
+function rollBuddy(userId, salt) {
+  const seed = hashString(userId + salt);
+  return { ...rollFrom(mulberry32(seed)), salt };
+}
+
+// --- Salt info ---
+function updateSaltInfo() {
+  const prefix = document.getElementById('prefix').value;
+  const suffixLen = SALT_LEN - prefix.length;
+  const el = document.getElementById('saltInfo');
+  if (suffixLen < 1) {
+    el.innerHTML = `<span class="warn">Prefix too long! Need &le; ${SALT_LEN - 1} chars (currently ${prefix.length})</span>`;
+  } else if (suffixLen > 7) {
+    el.innerHTML = `Salt: <span class="dim">${esc(prefix)}</span>${'N'.repeat(suffixLen)} &rarr; ${suffixLen} digits &rarr; <span class="warn">${Math.pow(10, suffixLen).toLocaleString()} combos (too many)</span>`;
+  } else {
+    const combos = Math.pow(10, suffixLen);
+    el.innerHTML = `Salt: <span class="dim">${esc(prefix)}</span>${'N'.repeat(suffixLen)} &rarr; ${suffixLen} digits &rarr; <span class="ok">${combos.toLocaleString()} combinations</span>`;
+  }
+}
+function esc(s) { return s.replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+updateSaltInfo();
+
+// --- Preview: show what the current filter looks like ---
+function updatePreview() {
+  const fR = document.getElementById('fRarity').value;
+  const fS = document.getElementById('fSpecies').value;
+  const fE = document.getElementById('fEye').value;
+  const fH = document.getElementById('fHat').value;
+  const fSh = document.getElementById('fShiny').value;
+  const box = document.getElementById('previewBox');
+  const sprite = document.getElementById('previewSprite');
+  const info = document.getElementById('previewInfo');
+
+  if (!fR && !fS && !fE && !fH && !fSh) {
+    box.style.display = 'none';
+    return;
+  }
+
+  const rarity = fR || 'common';
+  const species = fS || 'duck';
+  const eye = fE || '\u00B7';
+  const hat = fH || (rarity === 'common' ? 'none' : 'crown');
+  const shiny = fSh === 'yes';
+
+  const spriteArt = SPRITES[species] || '(?)';
+  sprite.textContent = shiny ? '\u2728' + spriteArt + '\u2728' : spriteArt;
+  info.innerHTML =
+    `<span class="name">${species}</span> <span class="badge badge-${rarity}">${rarity}</span>` +
+    (shiny ? ' <span class="badge badge-shiny">SHINY</span>' : '') +
+    `<br><span class="detail">eye: ${eye} &middot; hat: ${hat}</span>`;
+  box.style.display = 'flex';
+}
+
+for (const id of ['fRarity','fSpecies','fEye','fHat','fShiny']) {
+  document.getElementById(id).addEventListener('change', updatePreview);
+}
+updatePreview();
+
+// --- Verification: show buddy for default salt so user can confirm ---
+function verify(userId) {
+  const el = document.getElementById('verifyResult');
+  if (!userId) { el.className = 'verification'; el.textContent = ''; return; }
+  try {
+    const r = rollBuddy(userId, 'friend-2026-401');
+    el.className = 'verification ok';
+    el.textContent = `Buddy for salt 401: ${r.species} (${r.rarity})${r.shiny ? ' SHINY' : ''} | eye: ${r.eye} | hat: ${r.hat} — compare with your actual buddy to confirm`;
+  } catch (e) {
+    el.className = 'verification fail';
+    el.textContent = 'Error: ' + e.message;
+  }
+}
+
+document.getElementById('userId').addEventListener('input', e => {
+  localStorage.setItem('buddyPatcherUserId', e.target.value);
+  verify(e.target.value);
+});
+// Restore saved userId
+const savedUserId = localStorage.getItem('buddyPatcherUserId');
+if (savedUserId) {
+  document.getElementById('userId').value = savedUserId;
+  verify(savedUserId);
+}
+
+// --- Search ---
+let searching = false;
+
+function stopSearch() { searching = false; }
+
+function search() {
+  if (searching) return;
+  const userId = document.getElementById('userId').value.trim();
+  if (!userId) { alert('Enter your User ID'); return; }
+
+  const prefix = document.getElementById('prefix').value;
+  const suffixLen = SALT_LEN - prefix.length;
+  if (suffixLen < 1) { alert('Prefix too long — salt must be exactly ' + SALT_LEN + ' chars'); return; }
+  if (suffixLen > 7) { alert('Too many combinations (' + Math.pow(10, suffixLen).toLocaleString() + ') — use a longer prefix (max ' + (SALT_LEN - 1) + ' chars)'); return; }
+
+  const fR = document.getElementById('fRarity').value;
+  const fS = document.getElementById('fSpecies').value;
+  const fE = document.getElementById('fEye').value;
+  const fH = document.getElementById('fHat').value;
+  const fSh = document.getElementById('fShiny').value;
+  const total = Math.pow(10, suffixLen);
+
+  const btn = document.getElementById('searchBtn');
+  const status = document.getElementById('status');
+  const fill = document.getElementById('progressFill');
+  const tbody = document.getElementById('resultBody');
+  const results = document.getElementById('resultsSection');
+
+  tbody.innerHTML = '';
+  results.style.display = 'block';
+  btn.disabled = true;
+  btn.textContent = 'Searching...';
+  document.getElementById('stopBtn').style.display = 'block';
+  searching = true;
+  fill.style.width = '0%';
+
+  const matches = [];
+  const BATCH = 2000;
+  let i = 0;
+
+  function batch() {
+    const stop = Math.min(i + BATCH, total);
+    for (; i < stop; i++) {
+      const salt = prefix + String(i).padStart(suffixLen, '0');
+      const r = rollBuddy(userId, salt);
+      if (fR && r.rarity !== fR) continue;
+      if (fS && r.species !== fS) continue;
+      if (fE && r.eye !== fE) continue;
+      if (fH && r.hat !== fH) continue;
+      if (fSh === 'yes' && !r.shiny) continue;
+      if (fSh === 'no' && r.shiny) continue;
+      matches.push(r);
+    }
+
+    const pct = ((i / total) * 100).toFixed(1);
+    fill.style.width = pct + '%';
+    status.textContent = `${i.toLocaleString()} / ${total.toLocaleString()} (${pct}%) — Found: ${matches.length}`;
+    renderResults();
+
+    if (i < total && matches.length === 0 && searching) {
+      requestAnimationFrame(batch);
+    } else {
+      searching = false;
+      btn.disabled = false;
+      btn.textContent = 'Search';
+      document.getElementById('stopBtn').style.display = 'none';
+      fill.style.width = '100%';
+      if (matches.length) {
+        status.textContent = `Found ${matches.length} match(es) after scanning ${i.toLocaleString()} / ${total.toLocaleString()}. Click a row to copy patch command.`;
+      } else {
+        status.textContent = i >= total
+          ? `No matches in ${total.toLocaleString()} combinations. Try a different prefix.`
+          : `Stopped after scanning ${i.toLocaleString()} / ${total.toLocaleString()}.`;
+      }
+    }
+  }
+
+  function renderResults() {
+    tbody.innerHTML = '';
+    for (const m of matches) {
+      const row = document.createElement('div');
+      row.className = 'result-row';
+      row.innerHTML =
+        `<span>${esc(m.salt)}</span>` +
+        `<span>${m.species}</span>` +
+        `<span><span class="badge badge-${m.rarity}">${m.rarity}</span></span>` +
+        `<span>${m.eye}</span>` +
+        `<span>${m.hat}</span>` +
+        `<span>${m.shiny ? '<span class="badge badge-shiny">SHINY</span>' : ''}</span>`;
+      row.onclick = () => copyPatch(m.salt);
+      tbody.appendChild(row);
+    }
+  }
+
+  requestAnimationFrame(batch);
+}
+
+function copyPatch(salt) {
+  const cmd = `sed -i 's/friend-2026-401/${salt}/g' ~/.local/share/claude/versions/$(ls ~/.local/share/claude/versions/ | grep -E '^[0-9.]+$' | sort -V | tail -1)`;
+  navigator.clipboard.writeText(cmd).then(() => {
+    const toast = document.getElementById('toast');
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 2000);
+  });
+}
+
+function copyCmd(id) {
+  const text = document.getElementById(id).textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const toast = document.getElementById('toast');
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 2000);
+  });
+}
+</script>
+</body>
+</html>
