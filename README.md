@@ -4,6 +4,18 @@
 
 A static web tool to customize your Claude Code buddy companion by patching the salt string in the binary.
 
+### The `/buddy` command
+
+Claude Code has a built-in `/buddy` slash command you can run in the terminal:
+
+```
+/buddy
+```
+
+It displays your current buddy companion — a small creature that sits beside your input box. The buddy's species, rarity, eyes, hat, and shiny status are all derived deterministically from your `accountUuid` and a hardcoded salt baked into the Claude Code binary.
+
+Run `/buddy` to see what you currently have before deciding whether to patch.
+
 ### How it works
 
 Claude Code generates your buddy deterministically:
