@@ -1,5 +1,7 @@
 # Claude Code Buddy Patcher
 
+**[Try it here: https://kittinan.github.io/claude-code-buddy-patcher/](https://kittinan.github.io/claude-code-buddy-patcher/)**
+
 A static web tool to customize your Claude Code buddy companion by patching the salt string in the binary.
 
 ### How it works
